@@ -8,6 +8,12 @@ import { ErrorHandlerFilter } from './common/filters/error-handler.filter';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.enableCors({
+    origin: '*', // or specify array of allowed origins like ['http://localhost:3000']
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
