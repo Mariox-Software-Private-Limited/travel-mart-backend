@@ -1,13 +1,16 @@
-import {
-  Injectable,
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument } from 'src/database/schemas/user.schema';
-import { UserLoginDto, UserRegisterDto } from './dto/user.dto';
+import {
+  UserChangePasswordDto,
+  UserLoginDto,
+  UserRegisterDto,
+  UserResendOtpDto,
+  UserResetPasswordDto,
+  UserVerifyOtpDto,
+} from './dto/user.dto';
 import { CryptoService } from 'src/common/crypto/crypto.service';
 import { JwtPayload } from 'src/common/interfaces/jwt.interface';
 import { JwtService } from '@nestjs/jwt';
@@ -28,6 +31,7 @@ import { Response } from 'express';
 import {
   statusBadRequest,
   statusOk,
+  statusUnauthorized,
 } from 'src/common/constants/response.status.constant';
 import { UserEditProfileDto } from './dto/user-edit-profile.dto';
 import { sendEmail } from 'src/common/helpers/email.helper';
@@ -152,10 +156,11 @@ export class AuthService {
     const user = await this.userModel.findOne({ email });
     if (!user) throw new BadRequestException('User not found');
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
-    // user.resetOtp = otp;
-    // user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    console.log('otp=>>', otp);
+    user.resetOtp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
     await sendEmail(user.email, 'Password Reset OTP', `Your OTP is: ${otp}`);
@@ -165,7 +170,7 @@ export class AuthService {
       .json(successResponse(FORGOT_PASSWORD, {}, statusOk));
   }
 
-  async verifyOtp(body: any, res: Response) {
+  async verifyOtp(body: UserVerifyOtpDto, res: Response) {
     const { email, otp } = body;
 
     if (!email || !otp) {
@@ -196,7 +201,7 @@ export class AuthService {
         .json(badResponse('User not found', {}, statusBadRequest));
     }
 
-    if (user.resetOtp !== otp || new Date() > user.otpExpiry) {
+    if (user.resetOtp != otp || new Date() > user.otpExpiry) {
       return res
         .status(statusBadRequest)
         .json(badResponse('Invalid or expired OTP', {}, statusBadRequest));
@@ -228,40 +233,128 @@ export class AuthService {
       .json(successResponse('OTP verified successfully', loginUser, statusOk));
   }
 
-  // async resendOtp(email: string) {
-  //   return this.forgotPassword(email);
-  // }
+  async resendOtp(body: UserResendOtpDto, res: Response) {
+    const email = body.email;
+    if (!email) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse('Email or Username is required', {}, statusBadRequest),
+        );
+    }
 
-  async resetPassword(email: string, otp: string, newPassword: string) {
-    const user = await this.userModel.findOne({ email });
-    // if (!user || user.resetOtp !== otp || new Date() > user.otpExpiry) {
-    //   throw new BadRequestException('Invalid or expired OTP');
-    // }
+    const searchQuery = {
+      $or: [{ email: email.toLowerCase() }, { userName: email }],
+    };
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    // user.resetOtp = null;
-    // user.otpExpiry = null;
+    const user = await this.userModel.findOne(searchQuery);
+
+    if (!user) {
+      return res
+        .status(statusBadRequest)
+        .json(badResponse('User not found', {}, statusBadRequest));
+    }
+
+    // Optional: Prevent spamming resend (limit OTP sending frequency)
+    if (
+      user.otpExpiry &&
+      new Date() < new Date(user.otpExpiry.getTime() - 9 * 60 * 1000)
+    ) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse(
+            'Please wait before requesting another OTP',
+            {},
+            statusBadRequest,
+          ),
+        );
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    console.log('Resend OTP =>>', otp);
+
+    user.resetOtp = otp;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
     await user.save();
 
-    return { message: 'Password reset successfully' };
+    await sendEmail(user.email, 'Resend OTP', `Your OTP is: ${otp}`);
+
+    return res
+      .status(statusOk)
+      .json(successResponse('OTP resent successfully', {}, statusOk));
   }
 
-  async changePassword(
-    userId: string,
-    oldPassword: string,
-    newPassword: string,
-  ) {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+  async resetPassword(req: any, body: UserResetPasswordDto, res: Response) {
+    const { _id } = req.user;
+    const { newPassword, confirmPassword } = body;
+
+    if (newPassword !== confirmPassword) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse(
+            'New password and confirm password do not match',
+            {},
+            statusBadRequest,
+          ),
+        );
+    }
+
+    const user = await this.userModel.findById(_id);
+    if (!user) {
+      return res
+        .status(statusBadRequest)
+        .json(badResponse('User not found', {}, statusBadRequest));
+    }
+
+    user.password = newPassword; // will be hashed by pre-save middleware
+    user.resetOtp = null;
+    user.otpExpiry = null;
+
+    await user.save(); // triggers pre('save') and hashes the password
+
+    return res
+      .status(statusOk)
+      .json(successResponse('Password reset successfully', {}, statusOk));
+  }
+
+  async changePassword(req: any, body: UserChangePasswordDto, res: Response) {
+    const { _id } = req.user;
+    const { oldPassword, newPassword, confirmPassword } = body;
+
+    if (newPassword !== confirmPassword) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse(
+            'New password and confirm password do not match',
+            {},
+            statusBadRequest,
+          ),
+        );
+    }
+
+    const user = await this.userModel.findById(_id);
+    if (!user) {
+      return res
+        .status(statusUnauthorized)
+        .json(badResponse('User not found', {}, statusUnauthorized));
+    }
 
     const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-    if (!isPasswordValid)
-      throw new BadRequestException('Old password is incorrect');
+    if (!isPasswordValid) {
+      return res
+        .status(statusBadRequest)
+        .json(badResponse('Old password is incorrect', {}, statusBadRequest));
+    }
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = newPassword; // will be hashed by pre-save middleware
     await user.save();
 
-    return { message: 'Password changed successfully' };
+    return res
+      .status(statusOk)
+      .json(successResponse('Password changed successfully', {}, statusOk));
   }
 
   async getUserDetail(user: UserDocument, res: Response) {

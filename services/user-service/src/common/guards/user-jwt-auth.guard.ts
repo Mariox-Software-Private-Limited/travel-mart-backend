@@ -37,8 +37,6 @@ export class UserJwtAuthGuard implements CanActivate {
 
     let token = authorizationHeader.split(' ')[1];
 
-    console.log('token=>>', token);
-
     // ✅ Decrypt token if needed
     if (token.includes('+') || token.includes('/') || token.includes('=')) {
       token = this.cryptoService.decrypt(token);
