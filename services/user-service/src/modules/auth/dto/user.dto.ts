@@ -137,7 +137,7 @@ export class UserRegisterDto {
 }
 
 export class UserLoginDto {
-  @IsEmail()
+  @IsString()
   @IsNotEmpty()
   email: string;
 
@@ -145,10 +145,6 @@ export class UserLoginDto {
   @MinLength(6)
   @IsNotEmpty()
   password: string;
-
-  @IsString()
-  @IsNotEmpty()
-  userName: string;
 }
 
 export class UserForgotPasswordDto {

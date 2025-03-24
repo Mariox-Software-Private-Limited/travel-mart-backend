@@ -18,6 +18,7 @@ import {
   USER_ALREADY_FOUND,
   INVALID_PASS,
   INVALID_CRED,
+  FORGOT_PASSWORD,
 } from 'src/common/constants/response.constant';
 import {
   successResponse,
@@ -82,12 +83,27 @@ export class AuthService {
   async login(body: UserLoginDto, res: Response) {
     console.log('AuthService =>>> Login');
 
-    // eslint-disable-next-line prefer-const
-    let { email, password, userName } = body;
-    email = email.toLowerCase();
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse(
+            'Email/Username and Password are required',
+            {},
+            statusBadRequest,
+          ),
+        );
+    }
+
+    // To handle both email and username using one key: `email`
+    const searchQuery = {
+      $or: [{ email: email.toLowerCase() }, { userName: email }],
+    };
 
     const user = await this.userModel
-      .findOne({ userName, email })
+      .findOne(searchQuery)
       .select('email firstName lastName _id roles password')
       .populate('roles')
       .lean();
@@ -132,7 +148,7 @@ export class AuthService {
       .json(successResponse(USER_LOGIN, loginUser, statusOk));
   }
 
-  async forgotPassword(email: string) {
+  async forgotPassword(email: string, res: Response) {
     const user = await this.userModel.findOne({ email });
     if (!user) throw new BadRequestException('User not found');
 
@@ -144,21 +160,77 @@ export class AuthService {
 
     await sendEmail(user.email, 'Password Reset OTP', `Your OTP is: ${otp}`);
 
-    return { message: 'OTP sent to your email' };
+    return res
+      .status(statusOk)
+      .json(successResponse(FORGOT_PASSWORD, {}, statusOk));
   }
 
-  //   async verifyOtp(email: string, otp: string) {
-  // const user = await this.userModel.findOne({ email });
-  // if (!user || user.resetOtp !== otp || new Date() > user.otpExpiry) {
-  //   throw new BadRequestException('Invalid or expired OTP');
+  async verifyOtp(body: any, res: Response) {
+    const { email, otp } = body;
+
+    if (!email || !otp) {
+      return res
+        .status(statusBadRequest)
+        .json(
+          badResponse(
+            'Email/Username and OTP are required',
+            {},
+            statusBadRequest,
+          ),
+        );
+    }
+
+    const searchQuery = {
+      $or: [{ email: email.toLowerCase() }, { userName: email }],
+    };
+
+    const user = await this.userModel
+      .findOne(searchQuery)
+      .select('email userName resetOtp otpExpiry firstName lastName _id roles')
+      .populate('roles')
+      .lean();
+
+    if (!user) {
+      return res
+        .status(statusBadRequest)
+        .json(badResponse('User not found', {}, statusBadRequest));
+    }
+
+    if (user.resetOtp !== otp || new Date() > user.otpExpiry) {
+      return res
+        .status(statusBadRequest)
+        .json(badResponse('Invalid or expired OTP', {}, statusBadRequest));
+    }
+
+    const roles = user.roles.map((role) => role.name);
+    const permissions = user.roles.flatMap((role) => role.permissions || []);
+
+    const authObj = {
+      _id: user._id,
+      roles,
+      permissions,
+    };
+
+    const accessToken = this.generateAuthToken(authObj);
+    const encryptedToken = this.cryptoService.encrypt(accessToken);
+
+    const loginUser = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      accessToken: encryptedToken,
+      role: roles,
+    };
+
+    return res
+      .status(statusOk)
+      .json(successResponse('OTP verified successfully', loginUser, statusOk));
+  }
+
+  // async resendOtp(email: string) {
+  //   return this.forgotPassword(email);
   // }
-
-  //     return { message: 'OTP verified successfully' };
-  //   }
-
-  async resendOtp(email: string) {
-    return this.forgotPassword(email);
-  }
 
   async resetPassword(email: string, otp: string, newPassword: string) {
     const user = await this.userModel.findOne({ email });

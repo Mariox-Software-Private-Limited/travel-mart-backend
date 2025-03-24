@@ -16,7 +16,7 @@ import {
   UserLoginDto,
   UserForgotPasswordDto,
   //   UserVerifyOtpDto,
-  UserResendOtpDto,
+  // UserResendOtpDto,
   UserResetPasswordDto,
   UserChangePasswordDto,
 } from './dto/user.dto';
@@ -47,21 +47,24 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
-  forgotPassword(@Body() forgotPasswordDto: UserForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto.email);
+  forgotPassword(
+    @Body() forgotPasswordDto: UserForgotPasswordDto,
+    @Res() res: Response,
+  ) {
+    return this.authService.forgotPassword(forgotPasswordDto.email, res);
   }
-
-  //   @Public()
-  //   @Post('verify-otp')
-  //   verifyOtp(@Body() verifyOtpDto: UserVerifyOtpDto) {
-  //     return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp);
-  //   }
 
   @Public()
-  @Post('resend-otp')
-  resendOtp(@Body() resendOtpDto: UserResendOtpDto) {
-    return this.authService.resendOtp(resendOtpDto.email);
+  @Post('verify-otp')
+  verifyOtp(@Body() verifyOtpDto: UserForgotPasswordDto, @Res() res: Response) {
+    return this.authService.verifyOtp(verifyOtpDto, res);
   }
+
+  // @Public()
+  // @Post('resend-otp')
+  // resendOtp(@Body() resendOtpDto: UserResendOtpDto) {
+  //   return this.authService.resendOtp(resendOtpDto.email);
+  // }
 
   @Post('reset-password')
   resetPassword(@Body() resetPasswordDto: UserResetPasswordDto) {

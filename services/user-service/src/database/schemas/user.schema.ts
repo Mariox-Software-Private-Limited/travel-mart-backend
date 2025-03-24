@@ -28,6 +28,12 @@ export class User {
   })
   roles: Role[];
 
+  @Prop({ type: String, default: null })
+  resetOtp?: string;
+
+  @Prop({ type: Date, default: null })
+  otpExpiry?: Date;
+
   @Prop({ default: null })
   profilePicture?: string;
 
