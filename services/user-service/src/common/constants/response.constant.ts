@@ -15,6 +15,7 @@ export const OPEN_UPDATE_DATE_UPDATE = 'Open App date updated successfully.';
 export const USER_DETAILS_NOT_FOUND = 'User details not found.';
 export const INACTIVE_USER = 'User inActivated successfully.';
 export const ACTIVE_USER = 'User activated successfully.';
+export const FORGOT_PASSWORD = 'OTP sent to your email.';
 
 export const INVALID_ID = 'Invalid Id.';
 export const INVALID_PASS = 'Current password is invalid.';
