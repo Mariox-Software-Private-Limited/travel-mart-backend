@@ -8,6 +8,7 @@ import {
   IsEnum,
   ValidateNested,
   IsObject,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
@@ -158,9 +159,9 @@ export class UserVerifyOtpDto {
   @IsNotEmpty()
   email: string;
 
-  @IsString()
+  @IsNumber()
   @IsNotEmpty()
-  otp: string;
+  otp: number;
 }
 
 export class UserResendOtpDto {
@@ -170,25 +171,18 @@ export class UserResendOtpDto {
 }
 
 export class UserResetPasswordDto {
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  otp: string;
-
   @IsString()
   @MinLength(6)
   @IsNotEmpty()
   newPassword: string;
+
+  @IsString()
+  @MinLength(6)
+  @IsNotEmpty()
+  confirmPassword: string;
 }
 
 export class UserChangePasswordDto {
-  @IsMongoId()
-  @IsNotEmpty()
-  userId: string;
-
   @IsString()
   @MinLength(6)
   @IsNotEmpty()
@@ -198,6 +192,11 @@ export class UserChangePasswordDto {
   @MinLength(6)
   @IsNotEmpty()
   newPassword: string;
+
+  @IsString()
+  @MinLength(6)
+  @IsNotEmpty()
+  confirmPassword: string;
 }
 
 export class UserEditProfileDto {

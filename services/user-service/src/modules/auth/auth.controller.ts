@@ -3,22 +3,22 @@ import {
   Post,
   Body,
   Patch,
-  Param,
   Res,
   Get,
   UseGuards,
   Request,
   Put,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   UserRegisterDto,
   UserLoginDto,
   UserForgotPasswordDto,
-  //   UserVerifyOtpDto,
-  // UserResendOtpDto,
   UserResetPasswordDto,
   UserChangePasswordDto,
+  UserVerifyOtpDto,
+  UserResendOtpDto,
 } from './dto/user.dto';
 import { Response } from 'express';
 import { ResponseMessage } from 'src/common/decorators/response.decorator';
@@ -56,35 +56,32 @@ export class AuthController {
 
   @Public()
   @Post('verify-otp')
-  verifyOtp(@Body() verifyOtpDto: UserForgotPasswordDto, @Res() res: Response) {
+  verifyOtp(@Body() verifyOtpDto: UserVerifyOtpDto, @Res() res: Response) {
     return this.authService.verifyOtp(verifyOtpDto, res);
   }
 
-  // @Public()
-  // @Post('resend-otp')
-  // resendOtp(@Body() resendOtpDto: UserResendOtpDto) {
-  //   return this.authService.resendOtp(resendOtpDto.email);
-  // }
-
-  @Post('reset-password')
-  resetPassword(@Body() resetPasswordDto: UserResetPasswordDto) {
-    return this.authService.resetPassword(
-      resetPasswordDto.email,
-      resetPasswordDto.otp,
-      resetPasswordDto.newPassword,
-    );
+  @Public()
+  @Post('resend-otp')
+  resendOtp(@Body() resendOtpDto: UserResendOtpDto, @Res() res: Response) {
+    return this.authService.resendOtp(resendOtpDto, res);
   }
 
-  @Patch('change-password/:id')
-  changePassword(
-    @Param('id') userId: string,
-    @Body() changePasswordDto: UserChangePasswordDto,
+  @Post('reset-password')
+  resetPassword(
+    @Body() resetPasswordDto: UserResetPasswordDto,
+    @Req() req: any,
+    @Res() res: Response,
   ) {
-    return this.authService.changePassword(
-      userId,
-      changePasswordDto.oldPassword,
-      changePasswordDto.newPassword,
-    );
+    return this.authService.resetPassword(req, resetPasswordDto, res);
+  }
+
+  @Patch('change-password')
+  changePassword(
+    @Req() req: any,
+    @Body() changePasswordDto: UserChangePasswordDto,
+    @Res() res: Response,
+  ) {
+    return this.authService.changePassword(req, changePasswordDto, res);
   }
 
   @Get('profile')

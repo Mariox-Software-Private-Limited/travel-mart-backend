@@ -29,7 +29,7 @@ export class User {
   roles: Role[];
 
   @Prop({ type: String, default: null })
-  resetOtp?: string;
+  resetOtp?: number;
 
   @Prop({ type: Date, default: null })
   otpExpiry?: Date;
