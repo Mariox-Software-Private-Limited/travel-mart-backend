@@ -50,6 +50,7 @@ export class UserJwtAuthGuard implements CanActivate {
       // ✅ Fetch user from database
       const user = await this.userModel
         .findById(decoded._id)
+        .select('-password')
         .populate('roles')
         .lean();
 
