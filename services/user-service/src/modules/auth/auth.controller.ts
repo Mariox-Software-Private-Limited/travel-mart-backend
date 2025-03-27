@@ -89,9 +89,9 @@ export class AuthController {
     return this.authService.getUserDetail(req.user, res);
   }
 
-  @Put('edit-profile')
+  @Put('profile')
   async editProfile(
-    @Request() req,
+    @Request() req: any,
     @Body() editProfileDto: UserEditProfileDto,
     @Res() res: Response,
   ) {
